@@ -19,16 +19,14 @@ const APP_NAME = 'OWL BUG';
 
 const baileys = require('@whiskeysockets/baileys');
 const makeWASocket = baileys.default || baileys.makeWASocket;
-const { useMultiFileAuthState, DisconnectReason } = baileys;
+const { useMultiFileAuthState } = baileys;
 
 fs.mkdirSync(SESSIONS_ROOT, { recursive: true });
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: '*'
-  }
+  cors: { origin: '*' }
 });
 
 const state = {
@@ -136,7 +134,6 @@ app.use(helmet({
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
-app.use(express.static(PUBLIC_DIR));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'owlbug-dev-secret-change-me',
@@ -171,8 +168,9 @@ const pairingLimiter = rateLimit({
 app.use(generalLimiter);
 
 app.get('/api/csrf-token', (req, res) => {
-  const token = req.csrfToken ? req.csrfToken() : crypto.randomUUID();
-  res.json({ ok: true, csrfToken: token });
+  csrfProtection(req, res, () => {
+    res.json({ ok: true, csrfToken: req.csrfToken() });
+  });
 });
 
 app.use((req, res, next) => {
@@ -263,6 +261,8 @@ const bootSession = async ({ sessionId, phoneNumber, sessionDir }) => {
     syncFullHistory: false
   });
 
+  record.sock = sock;
+
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (update) => {
@@ -274,7 +274,7 @@ const bootSession = async ({ sessionId, phoneNumber, sessionDir }) => {
     record.connected = connection === 'open';
     record.disconnected = connection === 'close';
     record.reconnecting = connection === 'connecting';
-    record.error = lastDisconnect && lastDisconnect.error ? lastDisconnect.error.toString() : null;
+    record.error = lastDisconnect && lastDisconnect.error ? String(lastDisconnect.error) : null;
     record.updatedAt = formatTimestamp();
 
     if (connection === 'open') {
@@ -294,7 +294,6 @@ const bootSession = async ({ sessionId, phoneNumber, sessionDir }) => {
   });
 
   state.sessions.set(sessionId, record);
-
   return { sock, record };
 };
 
@@ -329,11 +328,9 @@ app.post('/api/pairing/request', pairingLimiter, async (req, res) => {
       pairingCode: record.pairingCode
     });
   } catch (error) {
-    addLog('pairing-error', error?.message || 'Unknown pairing error.');
-    res.status(500).json({
-      ok: false,
-      message: error?.message || 'Unable to generate pairing code.'
-    });
+    const message = error?.message || 'Unable to generate pairing code.';
+    addLog('pairing-error', message);
+    res.status(500).json({ ok: false, message });
   }
 });
 
@@ -431,6 +428,8 @@ app.get('/api/health', (req, res) => {
     systemStatus: 'ONLINE'
   });
 });
+
+app.use(express.static(PUBLIC_DIR));
 
 app.use((req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
