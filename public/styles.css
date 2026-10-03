@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OWL BUG | Admin</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="admin">
+    <div class="shell narrow">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand-mark">🦉</div>
+          <div>
+            <div class="eyebrow">ADMIN</div>
+            <div class="brand-name">OWL BUG</div>
+          </div>
+        </div>
+      </header>
+
+      <main class="panel admin-panel">
+        <h2>OWL BUG ADMIN</h2>
+
+        <div id="admin-login-box" class="admin-login-box">
+          <label for="admin-token">Admin Token</label>
+          <input id="admin-token" type="password" placeholder="Enter token" />
+          <button id="admin-login-button" class="primary-button">LOGIN</button>
+        </div>
+
+        <div id="admin-dashboard" class="hidden">
+          <div class="admin-summary-grid">
+            <div class="stat-card"><span>Users</span><strong id="users-count">0</strong></div>
+            <div class="stat-card"><span>Active Sessions</span><strong id="active-sessions">0</strong></div>
+            <div class="stat-card"><span>Disconnected Sessions</span><strong id="disconnected-sessions">0</strong></div>
+            <div class="stat-card"><span>Pairing Attempts</span><strong id="pairing-attempts">0</strong></div>
+            <div class="stat-card"><span>Connection Errors</span><strong id="connection-errors">0</strong></div>
+            <div class="stat-card"><span>Bot Runtime</span><strong id="bot-runtime">0s</strong></div>
+            <div class="stat-card"><span>System Status</span><strong id="system-status">ONLINE</strong></div>
+          </div>
+
+          <div class="button-row">
+            <button id="view-users-button" class="secondary-button">View users</button>
+            <button id="view-active-button" class="secondary-button">View active sessions</button>
+            <button id="restart-button" class="danger-button">Restart bot process</button>
+          </div>
+
+          <div id="admin-log-list" class="log-list"></div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

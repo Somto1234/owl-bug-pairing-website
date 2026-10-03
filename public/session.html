@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OWL BUG | Session</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="session">
+    <div class="shell narrow">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand-mark">🦉</div>
+          <div>
+            <div class="eyebrow">OWL BUG</div>
+            <div class="brand-name">Session</div>
+          </div>
+        </div>
+      </header>
+
+      <main class="panel session-panel">
+        <div class="status-pill" id="status-pill">WAITING</div>
+        <h2>Session Details</h2>
+
+        <div class="session-grid">
+          <div class="detail-row"><span>Connection status</span><strong id="connection-status">--</strong></div>
+          <div class="detail-row"><span>WhatsApp number</span><strong id="session-phone">--</strong></div>
+          <div class="detail-row"><span>Session created</span><strong id="session-created">--</strong></div>
+          <div class="detail-row"><span>Last connection</span><strong id="session-last-connection">--</strong></div>
+          <div class="detail-row"><span>Runtime</span><strong id="session-runtime">00:00:00</strong></div>
+          <div class="detail-row"><span>Reconnection status</span><strong id="session-reconnect">--</strong></div>
+        </div>
+
+        <button id="disconnect-button" class="danger-button">DISCONNECT</button>
+      </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

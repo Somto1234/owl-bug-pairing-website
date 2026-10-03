@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OWL BUG | Pairing</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="home">
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand-mark">🦉</div>
+          <div>
+            <div class="eyebrow">OWL BUG</div>
+            <div class="brand-name">WhatsApp Pairing</div>
+          </div>
+        </div>
+      </header>
+
+      <main class="panel">
+        <div class="owl-crest">🦉</div>
+        <h1>OWL BUG</h1>
+        <p class="subheading">Connect your WhatsApp session</p>
+
+        <form id="pairing-form" class="pairing-form">
+          <div class="country-row">
+            <span class="country-code">[ +234 ]</span>
+          </div>
+          <input id="phone-number" type="tel" inputmode="tel" placeholder="Phone Number" autocomplete="tel" />
+          <button type="submit">GENERATE PAIRING CODE</button>
+        </form>
+
+        <div class="divider">────────────────────────</div>
+
+        <div class="status-box">
+          <div class="status-label">● Session Status</div>
+          <div id="session-status-text" class="status-text">Waiting for number...</div>
+        </div>
+      </main>
+    </div>
+
+    <div id="pairing-card" class="pairing-card hidden">
+      <div class="card-frame">
+        <div class="card-header">🦉 OWL BUG</div>
+        <div class="card-title">PAIRING CODE</div>
+        <div id="pairing-code" class="code-value">1234-5678</div>
+        <p>Enter this code inside WhatsApp</p>
+        <button id="copy-code-button" class="secondary-button">COPY CODE</button>
+        <div class="waiting-bar">Waiting for WhatsApp connection...</div>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

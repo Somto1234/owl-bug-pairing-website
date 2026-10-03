@@ -1,0 +1,237 @@
+const page = document.body.dataset.page;
+const socket = window.io ? io() : null;
+
+const setStatus = (text) => {
+  const statusText = document.getElementById('session-status-text');
+  if (statusText) statusText.textContent = text;
+};
+
+const setConnectedPill = (status) => {
+  const pill = document.getElementById('status-pill');
+  if (!pill) return;
+
+  const done = String(status || 'WAITING').toUpperCase();
+  pill.textContent = done;
+
+  if (done === 'CONNECTED') {
+    pill.style.borderColor = 'rgba(59, 214, 122, 0.6)';
+    pill.style.color = '#baf7d0';
+    pill.style.background = 'rgba(59, 214, 122, 0.1)';
+  } else if (done === 'DISCONNECTED') {
+    pill.style.borderColor = 'rgba(255, 107, 107, 0.5)';
+    pill.style.color = '#ffd0d0';
+    pill.style.background = 'rgba(255, 107, 107, 0.08)';
+  } else if (done === 'CONNECTION_ERROR') {
+    pill.style.borderColor = 'rgba(245, 158, 11, 0.6)';
+    pill.style.color = '#fde68a';
+    pill.style.background = 'rgba(245, 158, 11, 0.08)';
+  } else {
+    pill.style.borderColor = 'rgba(125, 211, 252, 0.5)';
+    pill.style.color = '#e0f2fe';
+    pill.style.background = 'rgba(125, 211, 252, 0.08)';
+  }
+};
+
+const formatRuntime = (seconds = 0) => {
+  const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+  const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+  const secs = String(seconds % 60).padStart(2, '0');
+  return `${hrs}:${mins}:${secs}`;
+};
+
+const renderSessionCard = (session) => {
+  const phoneField = document.getElementById('session-phone');
+  const createdField = document.getElementById('session-created');
+  const lastConnectionField = document.getElementById('session-last-connection');
+  const runtimeField = document.getElementById('session-runtime');
+  const reconnectField = document.getElementById('session-reconnect');
+  const statusField = document.getElementById('connection-status');
+
+  if (phoneField) phoneField.textContent = session.phoneNumber || '--';
+  if (createdField) createdField.textContent = session.createdAt ? new Date(session.createdAt).toLocaleString() : '--';
+  if (lastConnectionField) lastConnectionField.textContent = session.lastConnectionAt ? new Date(session.lastConnectionAt).toLocaleString() : '--';
+  if (runtimeField) runtimeField.textContent = formatRuntime(session.runtimeSeconds || 0);
+  if (reconnectField) reconnectField.textContent = session.reconnecting ? 'RECONNECTING' : 'STABLE';
+  if (statusField) statusField.textContent = session.connectionStatus || session.status || '--';
+  if (document.getElementById('status-pill')) setConnectedPill(session.connectionStatus || session.status);
+};
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    },
+    ...options
+  });
+
+  const json = await response.json();
+  if (!response.ok) {
+    throw new Error(json.message || 'Request failed.');
+  }
+  return json;
+}
+
+if (page === 'home') {
+  const form = document.getElementById('pairing-form');
+  const phoneInput = document.getElementById('phone-number');
+  const pairingCard = document.getElementById('pairing-card');
+  const copyCodeButton = document.getElementById('copy-code-button');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const phoneNumber = phoneInput.value.trim();
+
+    if (!phoneNumber) {
+      setStatus('Please enter a valid number.');
+      return;
+    }
+
+    setStatus('Generating pairing code...');
+
+    try {
+      const result = await fetchJson('/api/pairing/request', {
+        method: 'POST',
+        body: JSON.stringify({ phoneNumber })
+      });
+
+      const session = result.session;
+      const code = session.pairingCode || result.pairingCode;
+      const codeBox = document.getElementById('pairing-code');
+      if (codeBox) codeBox.textContent = code;
+      pairingCard.classList.remove('hidden');
+      setStatus('Pairing code generated');
+
+      if (socket) {
+        socket.emit('join-session', session.sessionId);
+      }
+    } catch (error) {
+      setStatus(error.message || 'Unable to generate code.');
+    }
+  });
+
+  copyCodeButton.addEventListener('click', async () => {
+    const code = document.getElementById('pairing-code').textContent;
+    try {
+      await navigator.clipboard.writeText(code);
+      copyCodeButton.textContent = 'COPIED';
+    } catch (error) {
+      copyCodeButton.textContent = 'COPY FAILED';
+    }
+  });
+
+  if (socket) {
+    socket.on('session:update', (session) => {
+      if (!session || !session.connectionStatus) return;
+      setStatus(session.connectionStatus);
+      if (session.pairingCode) {
+        document.getElementById('pairing-code').textContent = session.pairingCode;
+        document.getElementById('pairing-card').classList.remove('hidden');
+      }
+    });
+  }
+}
+
+if (page === 'session') {
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('sessionId');
+
+  if (!sessionId) {
+    setConnectedPill('WAITING');
+    return;
+  }
+
+  fetchJson(`/api/session/${sessionId}`)
+    .then(({ session }) => renderSessionCard(session))
+    .catch((error) => console.error(error));
+
+  document.getElementById('disconnect-button')?.addEventListener('click', async () => {
+    try {
+      await fetchJson(`/api/session/${sessionId}/disconnect`, {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  if (socket) {
+    socket.on('session:update', (session) => {
+      if (session && session.sessionId === sessionId) renderSessionCard(session);
+    });
+  }
+}
+
+if (page === 'admin') {
+  const loginBox = document.getElementById('admin-login-box');
+  const dashboard = document.getElementById('admin-dashboard');
+  const loginButton = document.getElementById('admin-login-button');
+
+  const loadSummary = async () => {
+    try {
+      const result = await fetchJson('/api/admin/summary');
+      const { summary } = result;
+      document.getElementById('users-count').textContent = summary.users;
+      document.getElementById('active-sessions').textContent = summary.activeSessions;
+      document.getElementById('disconnected-sessions').textContent = summary.disconnectedSessions;
+      document.getElementById('pairing-attempts').textContent = summary.pairingAttempts;
+      document.getElementById('connection-errors').textContent = summary.connectionErrors;
+      document.getElementById('bot-runtime').textContent = formatRuntime(summary.botRuntime);
+      document.getElementById('system-status').textContent = summary.systemStatus;
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const loadLogs = async () => {
+    try {
+      const result = await fetchJson('/api/admin/logs');
+      const logContainer = document.getElementById('admin-log-list');
+      logContainer.innerHTML = '';
+      result.logs.slice(0, 8).forEach((entry) => {
+        const item = document.createElement('div');
+        item.className = 'log-item';
+        item.textContent = `${entry.timestamp} | ${entry.type} | ${entry.message}`;
+        logContainer.appendChild(item);
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  loginButton.addEventListener('click', async () => {
+    const token = document.getElementById('admin-token').value.trim();
+    try {
+      await fetchJson('/api/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ token })
+      });
+      loginBox.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+      await loadSummary();
+      await loadLogs();
+    } catch (error) {
+      alert(error.message || 'Login failed.');
+    }
+  });
+
+  document.getElementById('restart-button')?.addEventListener('click', async () => {
+    await fetchJson('/api/admin/restart', { method: 'POST', body: JSON.stringify({}) });
+  });
+
+  document.getElementById('view-users-button')?.addEventListener('click', async () => {
+    const result = await fetchJson('/api/sessions');
+    alert(JSON.stringify(result.sessions, null, 2));
+  });
+
+  document.getElementById('view-active-button')?.addEventListener('click', async () => {
+    const result = await fetchJson('/api/sessions');
+    const active = result.sessions.filter((item) => item.connected);
+    alert(JSON.stringify(active, null, 2));
+  });
+
+  loadSummary();
+  loadLogs();
+}
